@@ -1,10 +1,14 @@
 package com.example.autocointrader.domain.order;
 
+import com.example.autocointrader.application.ui.response.AccountBalance;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+
+
 
 public class OrderService {
 
@@ -23,6 +27,8 @@ public class OrderService {
         body.put("market", market);
         body.put("side", "bid");
         body.put("volume", String.valueOf(volume));
+
+        //시장가 구매
         body.put("ord_type", "price");
 
         String authToken = generateAuthToken(body);
@@ -36,7 +42,25 @@ public class OrderService {
 
     }
 
-    private String generateAuthToken(Map<String, Object> body) {
+
+    public Mono<Double> getAvailableBalance(String currency) {
+
+        Map<String, Object> body = new HashMap<>();
+
+        String token = generateAuthToken(body);
+
+        return webClient.get().uri("https://api.upbit.com/v1/accounts")
+                .header(HttpHeaders.AUTHORIZATION, token)
+                .retrieve()
+                .bodyToFlux(AccountBalance.class)
+                .filter(account -> account.getCurrency().equals(currency))
+                .map(account -> account.getBalance() - account.getLocked())
+                .next();
+
+
+    }
+
+    private String generateAuthToken(Map<String , Object> body) {
 
         String token = null;
 

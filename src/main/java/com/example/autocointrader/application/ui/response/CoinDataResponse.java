@@ -1,6 +1,5 @@
 package com.example.autocointrader.application.ui.response;
 
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
@@ -9,16 +8,19 @@ import lombok.Setter;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Getter
 @Setter
-public class MarketResponse {
+public class CoinDataResponse {
+
 
     @JsonProperty("market")
-    private String market;
+    private String symbol;
 
-    @JsonProperty("korean_name")
-    private String koreanName;
+    @JsonProperty("trade_price")
+    private double currentPrice;
 
-    @JsonProperty("english_name")
-    private String englishName;
+    @JsonProperty("prev_closing_price")
+    private double prevClosingPrice;
+
+
 
 
 
