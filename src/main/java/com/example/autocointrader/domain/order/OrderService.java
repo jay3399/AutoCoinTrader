@@ -21,7 +21,7 @@ public class OrderService {
         this.secretKey = secretKey;
     }
 
-    public Mono<String> buyOrder(String market, double volume) {
+    public Mono<String> getOrder(String market, double volume) {
 
         Map<String, Object> body = new HashMap<>();
         body.put("market", market);
