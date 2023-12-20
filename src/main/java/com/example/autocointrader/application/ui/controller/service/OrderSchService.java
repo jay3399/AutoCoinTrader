@@ -8,6 +8,7 @@ import com.example.autocointrader.infrastructure.api.MarketDataClient;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -55,23 +56,28 @@ public class OrderSchService {
     private final MarketDataClient marketDataClient;
 
     private final Map<String, PurchaseManager> activePurchases = new ConcurrentHashMap<>();
+    private final AtomicBoolean isPurchasing = new AtomicBoolean(false);
 
-//    private final BuyStrategy buyStrategy;
+
 
 
     public void executeOrders() {
 
         Flux.interval(Duration.ofMinutes(1))
+                .filter(s -> !isPurchasing.get())
                 .flatMap(t -> marketDataClient.getAllMarketCodes())
                 .filterWhen(this::shouldPurchase)
                 .flatMap(this::initPurchase)
-                .flatMap(this::executePurchase)
                 .subscribe();
 
     }
 
     // 조건 체크 로직
     private Mono<Boolean> shouldPurchase(String market) {
+
+        if (activePurchases.containsKey(market)) {
+            return Mono.just(false);
+        }
 
         return marketDataClient.getMarketData(market).map(
                 //ex
@@ -90,6 +96,9 @@ public class OrderSchService {
                     double amount = balance * 0.2;
                     PurchaseManager purchaseManager = PurchaseManager.create(market, amount);
                     activePurchases.put(market, purchaseManager);
+                    isPurchasing.set(true);
+
+                    executePurchase(purchaseManager).subscribe();
 
                     return purchaseManager;
                 }
@@ -99,21 +108,46 @@ public class OrderSchService {
     // 분할 매수 로직
     private Mono<String> executePurchase(PurchaseManager manager) {
 
-        return marketDataClient.getMarketData(manager.getMarket()).flatMap(
-                marketData -> {
-                    if (executeAdditionalPurchase(manager, marketData)) {
+        return Flux.interval(Duration.ofMinutes(5))
+                .take(3)
+                .flatMap(s -> marketDataClient.getMarketData(manager.getMarket()))
+                .filter(marketData -> executeAdditionalPurchase(manager, marketData))
+                .flatMap(marketData -> {
 
-                        double purchaseAmount = manager.calculateRemainingAmount();
+                    double amount = manager.calculateRemainingAmount();
 
-                        return orderService.getOrder(manager.getMarket(), purchaseAmount).doOnNext(
-                                response -> {
-                                    manager.updatePurchaseManager(marketData.getCurrentPrice(), purchaseAmount);
+                    return orderService.getOrder(manager.getMarket(), amount).doOnNext(
+                            response -> {
+                                manager.updatePurchaseManager(marketData.getCurrentPrice(), amount);
+
+                                if (manager.getPurchaseCount() >= 3) {
+                                    completePurchase(manager);
                                 }
-                        );
-                    } else {
-                        return Mono.empty();
+
+                            });
+
+
+                })
+                .next()
+                .doOnSuccess(response -> {
+                    if (manager.getPurchaseCount() >= 3) {
+                        completePurchase(manager);
+                    }
+                })
+                .doFinally(s -> {
+                    if (activePurchases.isEmpty()) {
+                        isPurchasing.set(false);
                     }
                 });
+
+
+    }
+
+    private void completePurchase(PurchaseManager manager) {
+        activePurchases.remove(manager.getMarket());
+        if (activePurchases.isEmpty()) {
+            isPurchasing.set(false);
+        }
     }
 
 
