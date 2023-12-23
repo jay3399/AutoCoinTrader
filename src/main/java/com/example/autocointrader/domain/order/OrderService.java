@@ -1,8 +1,15 @@
 package com.example.autocointrader.domain.order;
 
 import com.example.autocointrader.application.ui.response.AccountBalance;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -31,7 +38,11 @@ public class OrderService {
         //시장가 구매
         body.put("ord_type", "price");
 
-        String authToken = generateAuthToken(body);
+        String queryString = createQueryString(body);
+
+        String authToken = generateAuthToken(queryString);
+
+
 
         return webClient.post().uri("https://api.upbit.com/v1/orders")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -47,7 +58,9 @@ public class OrderService {
 
         Map<String, Object> body = new HashMap<>();
 
-        String token = generateAuthToken(body);
+        String queryString = createQueryString(body);
+
+        String token = generateAuthToken(queryString);
 
         return webClient.get().uri("https://api.upbit.com/v1/accounts")
                 .header(HttpHeaders.AUTHORIZATION, token)
@@ -60,12 +73,53 @@ public class OrderService {
 
     }
 
-    private String generateAuthToken(Map<String , Object> body) {
-
-        String token = null;
-
-        return "Bearer" + token;
+    private String createQueryString(Map<String, Object> params) {
+        return params.entrySet().stream()
+                .map(s -> s.getKey() + "=" + s.getValue())
+                .collect(Collectors.joining("&"));
     }
+
+
+
+    private String generateAuthToken(String queryString) {
+
+        String nonce = UUID.randomUUID().toString();
+        String queryHash = "";
+        String queryHashAlg = "SHA512";
+
+        if (queryString != null && !queryHashAlg.isEmpty()) {
+
+            try {
+                MessageDigest md = MessageDigest.getInstance("SHA-512");
+                byte[] digest = md.digest(queryString.getBytes("UTF-8"));
+                StringBuilder sb = new StringBuilder();
+
+                for (byte b : digest) {
+                    sb.append(String.format("%02x", b));
+                }
+
+                queryHash = sb.toString();
+
+            } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+                throw new RuntimeException(e);
+            }
+
+        }
+
+        String jwtToken = Jwts.builder()
+                .setHeaderParam("alg", "HS256")
+                .setHeaderParam("typ", "JWT")
+                .claim("access_key", accessKey)
+                .claim("nonce", nonce)
+                .claim("query_hash", queryHash)
+                .claim("query_hash_alg", queryHashAlg)
+                .signWith(SignatureAlgorithm.HS256, secretKey.getBytes())
+                .compact();
+
+        return "Bearer" + jwtToken;
+
+    }
+
 
 
 }

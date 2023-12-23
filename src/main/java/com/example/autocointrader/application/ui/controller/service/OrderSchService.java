@@ -59,8 +59,6 @@ public class OrderSchService {
     private final AtomicBoolean isPurchasing = new AtomicBoolean(false);
 
 
-
-
     public void executeOrders() {
 
         Flux.interval(Duration.ofMinutes(1))
@@ -125,8 +123,6 @@ public class OrderSchService {
                                 }
 
                             });
-
-
                 })
                 .next()
                 .doOnSuccess(response -> {
