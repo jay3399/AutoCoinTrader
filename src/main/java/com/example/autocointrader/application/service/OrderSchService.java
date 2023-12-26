@@ -1,4 +1,4 @@
-package com.example.autocointrader.application.ui.controller.service;
+package com.example.autocointrader.application.service;
 
 
 import com.example.autocointrader.application.ui.response.CoinDataResponse;

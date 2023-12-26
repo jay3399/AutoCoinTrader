@@ -10,30 +10,36 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 
-
+@Service
 public class OrderService {
 
     private final WebClient webClient = WebClient.create();
-    private final String accessKey;
-    private final String secretKey;
+    public final String accessKey;
+    public final String secretKey;
 
-    public OrderService(String accessKey, String secretKey) {
+    public OrderService(@Value("${upbit.access-key}") String accessKey, @Value("${upbit.secret-key}")  String secretKey) {
         this.accessKey = accessKey;
         this.secretKey = secretKey;
     }
 
-    public Mono<String> getOrder(String market, double volume) {
+    public Mono<String> getOrder(String market, double price) {
+
 
         Map<String, Object> body = new HashMap<>();
         body.put("market", market);
         body.put("side", "bid");
-        body.put("volume", String.valueOf(volume));
+        body.put("price", String.valueOf(price));
+
+        // 시장가 구매시에는 , volume 필요없음
+//        body.put("volume", String.valueOf(volume));
 
         //시장가 구매
         body.put("ord_type", "price");
@@ -56,11 +62,12 @@ public class OrderService {
 
     public Mono<Double> getAvailableBalance(String currency) {
 
-        Map<String, Object> body = new HashMap<>();
+        String nonce = UUID.randomUUID().toString();
 
-        String queryString = createQueryString(body);
+        String token = Jwts.builder().setHeaderParam("alg", "HS256").setHeaderParam("typ", "JWT")
+                .claim("access_key", accessKey).claim("nonce", nonce)
+                .signWith(SignatureAlgorithm.HS256, secretKey.getBytes()).compact();
 
-        String token = generateAuthToken(queryString);
 
         return webClient.get().uri("https://api.upbit.com/v1/accounts")
                 .header(HttpHeaders.AUTHORIZATION, token)
@@ -91,7 +98,9 @@ public class OrderService {
 
             try {
                 MessageDigest md = MessageDigest.getInstance("SHA-512");
-                byte[] digest = md.digest(queryString.getBytes("UTF-8"));
+                md.update(queryString.getBytes("UTF-8"));
+                byte[] digest = md.digest();
+
                 StringBuilder sb = new StringBuilder();
 
                 for (byte b : digest) {
@@ -116,7 +125,7 @@ public class OrderService {
                 .signWith(SignatureAlgorithm.HS256, secretKey.getBytes())
                 .compact();
 
-        return "Bearer" + jwtToken;
+        return "Bearer " + jwtToken;
 
     }
 

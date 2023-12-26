@@ -21,13 +21,8 @@ public class AutoCoinTraderApplication {
 
         MarketDataClient marketDataClient = new MarketDataClient();
 
-//        marketDataClient.getAllMarketCodes().subscribe(marketCode -> log.info("Market Code: {}", marketCode));
+        marketDataClient.getAllMarketCodes().subscribe(marketCode -> log.info("Market Code: {}", marketCode));
 
-//        WebClient webClient = WebClient.create();
-//        Mono<String> response = webClient.get().uri(URL).retrieve().bodyToMono(String.class);
-//        response.subscribe(x -> System.out.println(x));
-
-        marketDataClient.getMarketData("KRW-BTC").subscribe(s -> log.info("current : {}" , s.getPrevClosingPrice()));
 
 
 
