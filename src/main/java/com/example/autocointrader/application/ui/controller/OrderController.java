@@ -1,6 +1,8 @@
 package com.example.autocointrader.application.ui.controller;
 
 
+import com.example.autocointrader.application.ui.response.OrderChanceResponse;
+import com.example.autocointrader.application.ui.response.OrderChanceResponse.AccountInfo;
 import com.example.autocointrader.domain.order.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,9 +20,9 @@ public class OrderController {
 
 
     @PostMapping("/api/orders/create")
-    public ResponseEntity<String> createOrder(@RequestParam String market, @RequestParam double price) {
+    public ResponseEntity<String> createOrder(@RequestParam String market, @RequestParam double price , @RequestParam String side) {
 
-        Mono<String> order = orderService.getOrder(market, price);
+        Mono<String> order = orderService.getOrder(market, price, side);
 
         return ResponseEntity.ok(order.block());
     }
@@ -41,6 +43,22 @@ public class OrderController {
 
 
     }
+
+    @GetMapping("/api/order/chance")
+    public ResponseEntity<String> getOrderChance(@RequestParam String market) {
+
+        Mono<OrderChanceResponse> orderChance = orderService.getOrderChance(market);
+        OrderChanceResponse chanceResponse = orderChance.block();
+
+        AccountInfo bidAccount = chanceResponse.getBidAccount();
+        AccountInfo askAccount = chanceResponse.getAskAccount();
+        System.out.println("bidAccount. = " + bidAccount.getBalance());
+        System.out.println("askAccount. = " + askAccount.getBalance());
+
+
+        return ResponseEntity.ok(bidAccount.getBalance());
+    }
+
 
 
 }

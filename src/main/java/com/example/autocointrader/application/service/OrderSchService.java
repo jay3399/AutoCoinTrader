@@ -114,7 +114,7 @@ public class OrderSchService {
 
                     double amount = manager.calculateRemainingAmount();
 
-                    return orderService.getOrder(manager.getMarket(), amount).doOnNext(
+                    return orderService.getOrder(manager.getMarket(), amount , "bid").doOnNext(
                             response -> {
                                 manager.updatePurchaseManager(marketData.getCurrentPrice(), amount);
 

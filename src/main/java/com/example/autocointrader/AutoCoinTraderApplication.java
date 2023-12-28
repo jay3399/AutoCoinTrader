@@ -1,5 +1,7 @@
 package com.example.autocointrader;
 
+import com.example.autocointrader.application.ui.response.OrderChanceResponse;
+import com.example.autocointrader.domain.order.OrderService;
 import com.example.autocointrader.infrastructure.api.MarketDataClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,7 @@ public class AutoCoinTraderApplication {
         MarketDataClient marketDataClient = new MarketDataClient();
 
         marketDataClient.getAllMarketCodes().subscribe(marketCode -> log.info("Market Code: {}", marketCode));
+
 
 
 

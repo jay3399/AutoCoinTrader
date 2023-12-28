@@ -1,9 +1,11 @@
 package com.example.autocointrader.domain.order;
 
 import com.example.autocointrader.application.ui.response.AccountBalance;
+import com.example.autocointrader.application.ui.response.OrderChanceResponse;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
@@ -30,12 +32,11 @@ public class OrderService {
         this.secretKey = secretKey;
     }
 
-    public Mono<String> getOrder(String market, double price) {
-
+    public Mono<String> getOrder(String market, double price, String side) {
 
         Map<String, Object> body = new HashMap<>();
         body.put("market", market);
-        body.put("side", "bid");
+        body.put("side", side);
         body.put("price", String.valueOf(price));
 
         // 시장가 구매시에는 , volume 필요없음
@@ -48,8 +49,6 @@ public class OrderService {
 
         String authToken = generateAuthToken(queryString);
 
-
-
         return webClient.post().uri("https://api.upbit.com/v1/orders")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", authToken)
@@ -59,14 +58,32 @@ public class OrderService {
 
     }
 
+    public Mono<OrderChanceResponse> getOrderChance(String market) {
+
+        String queryString = "market=" + market;
+
+        String token = generateAuthToken(queryString);
+
+        return webClient.get()
+                .uri("https://api.upbit.com/v1/orders/chance?market=" + market)
+                .header("Authorization", token)
+                .retrieve()
+                .bodyToMono(OrderChanceResponse.class);
+
+    }
+
+
+
+
 
     public Mono<Double> getAvailableBalance(String currency) {
 
         String nonce = UUID.randomUUID().toString();
 
-        String token = Jwts.builder().setHeaderParam("alg", "HS256").setHeaderParam("typ", "JWT")
-                .claim("access_key", accessKey).claim("nonce", nonce)
-                .signWith(SignatureAlgorithm.HS256, secretKey.getBytes()).compact();
+        String token = Jwts.builder().setHeaderParam("alg", "HS256")
+                        .setHeaderParam("typ", "JWT")
+                        .claim("access_key", accessKey).claim("nonce", nonce)
+                        .signWith(SignatureAlgorithm.HS256, secretKey.getBytes()).compact();
 
 
         return webClient.get().uri("https://api.upbit.com/v1/accounts")
@@ -94,26 +111,18 @@ public class OrderService {
         String queryHash = "";
         String queryHashAlg = "SHA512";
 
-        if (queryString != null && !queryHashAlg.isEmpty()) {
 
+        if (queryString != null && !queryString.isEmpty()) {
             try {
                 MessageDigest md = MessageDigest.getInstance("SHA-512");
                 md.update(queryString.getBytes("UTF-8"));
                 byte[] digest = md.digest();
-
-                StringBuilder sb = new StringBuilder();
-
-                for (byte b : digest) {
-                    sb.append(String.format("%02x", b));
-                }
-
-                queryHash = sb.toString();
-
+                queryHash = String.format("%0128x", new BigInteger(1, digest));
             } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
                 throw new RuntimeException(e);
             }
-
         }
+
 
         String jwtToken = Jwts.builder()
                 .setHeaderParam("alg", "HS256")
