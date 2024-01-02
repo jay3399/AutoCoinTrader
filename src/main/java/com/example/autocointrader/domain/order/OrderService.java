@@ -32,15 +32,56 @@ public class OrderService {
         this.secretKey = secretKey;
     }
 
-    public Mono<String> getOrder(String market, double price, String side) {
+    public Mono<String> getOrderV2(String market, String price, String volume, String side , String ordType) {
 
         Map<String, Object> body = new HashMap<>();
         body.put("market", market);
         body.put("side", side);
-        body.put("price", String.valueOf(price));
+        body.put("ord_type", ordType); // 주문 유형
 
-        // 시장가 구매시에는 , volume 필요없음
-//        body.put("volume", String.valueOf(volume));
+        switch (ordType) {
+            case "price" -> {
+                if ("bid".equals(side)) {
+                    body.put("price", price); // 시장가 매수: 매수 금액 설정
+                }
+            }
+            case "market" -> {
+                if ("ask".equals(side)) {
+                    body.put("volume", volume); // 시장가 매도: 매도 수량 설정
+                }
+            }
+            case "limit" -> {
+                // 지정가 주문: 가격과 수량 설정
+                body.put("price", price);
+                body.put("volume", volume);
+            }
+            default -> throw new IllegalArgumentException(ordType);
+        }
+
+
+        String queryString = createQueryString(body);
+
+        String authToken = generateAuthToken(queryString);
+
+        return webClient.post().uri("https://api.upbit.com/v1/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", authToken)
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(String.class);
+
+    }
+
+    public Mono<String> getOrderV1(String market, double price, String volume, String side) {
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("market", market);
+        body.put("side", side);
+        body.put("price", price);
+
+        // 시장가매수는 ( "bid" )  , volume 필요없음
+        // 시장가매도는 ( "ask" ) ,  price  필요없음
+        body.put("volume", volume);
 
         //시장가 구매
         body.put("ord_type", "price");
@@ -57,6 +98,7 @@ public class OrderService {
                 .bodyToMono(String.class);
 
     }
+
 
     public Mono<OrderChanceResponse> getOrderChance(String market) {
 

@@ -20,9 +20,9 @@ public class OrderController {
 
 
     @PostMapping("/api/orders/create")
-    public ResponseEntity<String> createOrder(@RequestParam String market, @RequestParam double price , @RequestParam String side) {
+    public ResponseEntity<String> createOrder(@RequestParam String market, @RequestParam double price , @RequestParam String side , @RequestParam double volume) {
 
-        Mono<String> order = orderService.getOrder(market, price, side);
+        Mono<String> order = orderService.getOrder(market, price, volume, side);
 
         return ResponseEntity.ok(order.block());
     }
@@ -43,6 +43,8 @@ public class OrderController {
 
 
     }
+
+
 
     @GetMapping("/api/order/chance")
     public ResponseEntity<String> getOrderChance(@RequestParam String market) {

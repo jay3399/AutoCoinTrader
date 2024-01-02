@@ -71,11 +71,15 @@ public class OrderSchService {
     }
 
     // 조건 체크 로직
+
     private Mono<Boolean> shouldPurchase(String market) {
 
         if (activePurchases.containsKey(market)) {
             return Mono.just(false);
         }
+
+
+
 
         return marketDataClient.getMarketData(market).map(
                 //ex
@@ -114,8 +118,8 @@ public class OrderSchService {
 
                     double amount = manager.calculateRemainingAmount();
 
-                    return orderService.getOrder(manager.getMarket(), amount , "bid").doOnNext(
-                            response -> {
+                    return orderService.getOrderV2(manager.getMarket() , String.valueOf(amount) , null , "bid" , "price")
+                            .doOnNext( response -> {
                                 manager.updatePurchaseManager(marketData.getCurrentPrice(), amount);
 
                                 if (manager.getPurchaseCount() >= 3) {
@@ -150,8 +154,7 @@ public class OrderSchService {
     private boolean executeAdditionalPurchase(PurchaseManager manager,
             CoinDataResponse marketData) {
 
-        return manager.getPurchaseCount() == 0
-                || marketData.getCurrentPrice() < manager.getLastPurchasePrice();
+        return manager.getPurchaseCount() == 0 || marketData.getCurrentPrice() < manager.getLastPurchasePrice();
 
     }
 
