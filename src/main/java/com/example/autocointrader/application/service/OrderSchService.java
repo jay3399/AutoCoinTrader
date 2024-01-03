@@ -56,6 +56,8 @@ public class OrderSchService {
     private final MarketDataClient marketDataClient;
 
     private final Map<String, PurchaseManager> activePurchases = new ConcurrentHashMap<>();
+
+    // 필수적이지는 않다.
     private final AtomicBoolean isPurchasing = new AtomicBoolean(false);
 
 
@@ -78,9 +80,6 @@ public class OrderSchService {
             return Mono.just(false);
         }
 
-
-
-
         return marketDataClient.getMarketData(market).map(
                 //ex
                 marketData -> {
@@ -93,16 +92,14 @@ public class OrderSchService {
 
     // 초기화
     private Mono<PurchaseManager> initPurchase(String market) {
-        return orderService.getAvailableBalance("KRW").map(
+        return orderService.getAvailableBalance("KRW").flatMap(
                 balance -> {
                     double amount = balance * 0.2;
                     PurchaseManager purchaseManager = PurchaseManager.create(market, amount);
                     activePurchases.put(market, purchaseManager);
                     isPurchasing.set(true);
 
-                    executePurchase(purchaseManager).subscribe();
-
-                    return purchaseManager;
+                    return executePurchase(purchaseManager).thenReturn(purchaseManager);
                 }
         );
     }
@@ -118,8 +115,9 @@ public class OrderSchService {
 
                     double amount = manager.calculateRemainingAmount();
 
-                    return orderService.getOrderV2(manager.getMarket() , String.valueOf(amount) , null , "bid" , "price")
-                            .doOnNext( response -> {
+                    return orderService.getOrderV2(manager.getMarket(), String.valueOf(amount),
+                                    null, "bid", "price")
+                            .doOnNext(response -> {
                                 manager.updatePurchaseManager(marketData.getCurrentPrice(), amount);
 
                                 if (manager.getPurchaseCount() >= 3) {
@@ -128,19 +126,15 @@ public class OrderSchService {
 
                             });
                 })
-                .next()
-                .doOnSuccess(response -> {
-                    if (manager.getPurchaseCount() >= 3) {
-                        completePurchase(manager);
-                    }
-                })
-                .doFinally(s -> {
-                    if (activePurchases.isEmpty()) {
-                        isPurchasing.set(false);
-                    }
-                });
-
-
+                .collectList()
+                .flatMap(
+                        response -> {
+                            completePurchase(manager);
+                            return Mono.justOrEmpty(
+                                    response.size() > 0 ? response.get(response.size() - 1)
+                                            : "매수완료");
+                        }
+                );
     }
 
     private void completePurchase(PurchaseManager manager) {
