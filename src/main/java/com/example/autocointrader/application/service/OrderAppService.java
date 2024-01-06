@@ -20,6 +20,7 @@ public class OrderAppService {
         return orderService.getOrderChance(market).flatMap(
                 chance -> {
                     String balance = chance.getAskAccount().getBalance();
+                    System.out.println("balance = " + balance);
                     return orderService.getOrderV2(market, null, balance, "ask", "market");
                 });
     }

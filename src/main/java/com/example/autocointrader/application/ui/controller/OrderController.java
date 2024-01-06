@@ -1,8 +1,12 @@
 package com.example.autocointrader.application.ui.controller;
 
 
+import com.example.autocointrader.application.service.AccountAppService;
+import com.example.autocointrader.application.service.OrderAppService;
+import com.example.autocointrader.application.service.OrderSchService;
 import com.example.autocointrader.application.ui.response.OrderChanceResponse;
 import com.example.autocointrader.application.ui.response.OrderChanceResponse.AccountInfo;
+import com.example.autocointrader.domain.account.AccountService;
 import com.example.autocointrader.domain.order.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +14,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @RestController
@@ -18,20 +23,39 @@ public class OrderController {
 
     private final OrderService orderService;
 
+    private final AccountService accountService;
+
+    private final OrderAppService orderAppService;
+
+    private final AccountAppService accountAppService;
+
+    private final OrderSchService orderSchService;
+
 
     @PostMapping("/api/orders/create")
-    public ResponseEntity<String> createOrder(@RequestParam String market, @RequestParam double price , @RequestParam String side , @RequestParam double volume) {
+    public ResponseEntity<String> createOrder(@RequestParam String market,
+            @RequestParam String price, @RequestParam String side, @RequestParam String volume,
+            @RequestParam String ordType) {
 
-        Mono<String> order = orderService.getOrder(market, price, volume, side);
+        Mono<String> order = orderService.getOrderV2(market, price, volume, side, ordType);
 
         return ResponseEntity.ok(order.block());
+    }
+
+
+    @PostMapping("/api/orders/sell/all")
+    public ResponseEntity<String> createOrderForSellAllCoins(@RequestParam String market) {
+
+        Mono<String> stringMono = orderAppService.sellAllCoins(market);
+        return ResponseEntity.ok(stringMono.block());
+
     }
 
 
     @GetMapping("/api/balance/available")
     public ResponseEntity<String> getAvailableBalance(@RequestParam String currency) {
 
-        Mono<Double> availableBalance = orderService.getAvailableBalance(currency);
+        Mono<Double> availableBalance = accountService.getAvailableBalance(currency);
 
         Double block = availableBalance.block();
 
@@ -45,7 +69,6 @@ public class OrderController {
     }
 
 
-
     @GetMapping("/api/order/chance")
     public ResponseEntity<String> getOrderChance(@RequestParam String market) {
 
@@ -54,13 +77,22 @@ public class OrderController {
 
         AccountInfo bidAccount = chanceResponse.getBidAccount();
         AccountInfo askAccount = chanceResponse.getAskAccount();
-        System.out.println("bidAccount. = " + bidAccount.getBalance());
-        System.out.println("askAccount. = " + askAccount.getBalance());
-
 
         return ResponseEntity.ok(bidAccount.getBalance());
     }
 
+    @GetMapping("/api/order/test")
+    public void test() {
+
+        Flux<String> currencyOnAccounts = accountAppService.getCurrencyOnAccounts();
+
+        currencyOnAccounts.subscribe(s -> {
+            System.out.println("s = " + s);
+        });
+
+
+
+    }
 
 
 }

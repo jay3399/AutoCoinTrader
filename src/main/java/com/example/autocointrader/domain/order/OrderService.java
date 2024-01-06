@@ -1,6 +1,5 @@
 package com.example.autocointrader.domain.order;
 
-import com.example.autocointrader.application.ui.response.AccountBalance;
 import com.example.autocointrader.application.ui.response.OrderChanceResponse;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -13,7 +12,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -79,8 +77,8 @@ public class OrderService {
         body.put("side", side);
         body.put("price", price);
 
-        // 시장가매수는 ( "bid" )  , volume 필요없음
-        // 시장가매도는 ( "ask" ) ,  price  필요없음
+        // 매수는 ( "bid" )  ,시장가시 volume 필요없음
+        // 매도는 ( "ask" ) , 시장가시 price  필요없음
         body.put("volume", volume);
 
         //시장가 구매
@@ -115,29 +113,6 @@ public class OrderService {
     }
 
 
-
-
-
-    public Mono<Double> getAvailableBalance(String currency) {
-
-        String nonce = UUID.randomUUID().toString();
-
-        String token = Jwts.builder().setHeaderParam("alg", "HS256")
-                        .setHeaderParam("typ", "JWT")
-                        .claim("access_key", accessKey).claim("nonce", nonce)
-                        .signWith(SignatureAlgorithm.HS256, secretKey.getBytes()).compact();
-
-
-        return webClient.get().uri("https://api.upbit.com/v1/accounts")
-                .header(HttpHeaders.AUTHORIZATION, token)
-                .retrieve()
-                .bodyToFlux(AccountBalance.class)
-                .filter(account -> account.getCurrency().equals(currency))
-                .map(account -> account.getBalance() - account.getLocked())
-                .next();
-
-
-    }
 
     private String createQueryString(Map<String, Object> params) {
         return params.entrySet().stream()

@@ -2,11 +2,14 @@ package com.example.autocointrader.application.service;
 
 
 import com.example.autocointrader.application.ui.response.CoinDataResponse;
+import com.example.autocointrader.domain.account.AccountService;
 import com.example.autocointrader.domain.manager.buy.PurchaseManager;
 import com.example.autocointrader.domain.order.OrderService;
 import com.example.autocointrader.infrastructure.api.MarketDataClient;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +22,11 @@ import reactor.core.publisher.Mono;
 public class OrderSchService {
 
 
-    /**
+    /** 자동매수
+     *
+     * 시나리오
+     *
+     * 1.첫번째
      * 조건에 맞는코인이 있는지체 주기적으로 체크 후 매수 시작 ( 매수를 시작했을시에는 , 추가매수 종료시까지 조건 체크안한다 )
      * <p>
      * 여기서는 , 여러 코인을  매수 가능 . ( + 최대 개수 제한을 두어야 할것같음 )
@@ -48,10 +55,43 @@ public class OrderSchService {
      * <p>
      * <p>
      * 위 매수 과정이 모두 끝이나면 , 그떄부터 다시 조건이 맞는 코인이 있는지 체크시작 .. 반복 ~
+     *
+     *
+     * 2. 두번째 시나리오
+     *
+     * 위와같이 , 모든 코인을 탐색하지않고
+     *
+     * 특정코인을 내가 지정하고 , 그것만을 체크한다 ( 파라미터로 특정코인의 마켓코드와 해당하는 지정가격을 보낸다  , 해당 부분은 한개가 될수도있고 여러 코인이 될수도 있다 . )
+     *
+     * 조건은 위에서 지정한 해당 가격에 도달하면 해당 가격에서 부터 매수를 시작한다.
+     *
+     * 분할 매수전략은 위와 동일하다 .
+     *
+     *
+     *
+     *
+     *
+     */
+
+
+    /**
+     * 자동 매도 - 주문메서드 (orderService) , 내가 현재 갖고있는 코인리스트
+     *
+     *
+     *
+     *
+     */
+
+
+    /**
+     *
+     *
      */
 
 
     private final OrderService orderService;
+
+    private final AccountService accountService;
 
     private final MarketDataClient marketDataClient;
 
@@ -63,7 +103,7 @@ public class OrderSchService {
 
     public void executeOrders() {
 
-        Flux.interval(Duration.ofMinutes(1))
+        Flux.interval(Duration.ofMinutes(3))
                 .filter(s -> !isPurchasing.get())
                 .flatMap(t -> marketDataClient.getAllMarketCodes())
                 .filterWhen(this::shouldPurchase)
@@ -71,6 +111,25 @@ public class OrderSchService {
                 .subscribe();
 
     }
+
+
+
+
+    public void executeOrdersForTarget() {
+
+        Map<String, Double> targetedCoins = new HashMap<>();
+
+        Flux.interval(Duration.ofMinutes(5))
+                .flatMap(s -> Flux.fromIterable(targetedCoins.entrySet()))
+                .filterWhen(this::shouldPurchaseForTarget)
+                .flatMap(entry -> initPurchase(entry.getKey()))
+                .subscribe();
+
+    }
+
+
+
+
 
     // 조건 체크 로직
 
@@ -89,16 +148,20 @@ public class OrderSchService {
         ).defaultIfEmpty(false);
     }
 
+    private Mono<Boolean> shouldPurchaseForTarget(Entry<String , Double> entry) {
+
+    }
+
+
 
     // 초기화
     private Mono<PurchaseManager> initPurchase(String market) {
-        return orderService.getAvailableBalance("KRW").flatMap(
+        return accountService.getAvailableBalance("KRW").flatMap(
                 balance -> {
                     double amount = balance * 0.2;
                     PurchaseManager purchaseManager = PurchaseManager.create(market, amount);
                     activePurchases.put(market, purchaseManager);
                     isPurchasing.set(true);
-
                     return executePurchase(purchaseManager).thenReturn(purchaseManager);
                 }
         );
@@ -130,9 +193,7 @@ public class OrderSchService {
                 .flatMap(
                         response -> {
                             completePurchase(manager);
-                            return Mono.justOrEmpty(
-                                    response.size() > 0 ? response.get(response.size() - 1)
-                                            : "매수완료");
+                            return Mono.justOrEmpty(response.size() > 0 ? response.get(response.size() - 1) : "매수완료");
                         }
                 );
     }
