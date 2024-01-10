@@ -13,12 +13,14 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderSchService {
 
 
@@ -103,16 +105,17 @@ public class OrderSchService {
 
     public void executeOrders() {
 
-        Flux.interval(Duration.ofMinutes(3))
+        log.info("시작");
+
+        Flux.interval(Duration.ofMinutes(1))
                 .filter(s -> !isPurchasing.get())
+                .doOnNext(s -> log.info("가격체크중"))
                 .flatMap(t -> marketDataClient.getAllMarketCodes())
                 .filterWhen(this::shouldPurchase)
                 .flatMap(this::initPurchase)
                 .subscribe();
 
     }
-
-
 
 
     public void executeOrdersForTarget() {
@@ -124,9 +127,7 @@ public class OrderSchService {
                 .filterWhen(this::shouldPurchaseForTarget)
                 .flatMap(entry -> initPurchase(entry.getKey()))
                 .subscribe();
-
     }
-
 
 
 
@@ -135,30 +136,44 @@ public class OrderSchService {
 
     private Mono<Boolean> shouldPurchase(String market) {
 
+        log.info("마켓코드 조건체크 시작  : {}", market);
+
         if (activePurchases.containsKey(market)) {
             return Mono.just(false);
         }
 
-        return marketDataClient.getMarketData(market).map(
+        /**
+         * API 요청수제한 !! , 1초에 총 10번의 요청만이가능 -> 딜레이기능 사용.
+         */
+        return marketDataClient.getMarketData(market).delayElement(Duration.ofMillis(75)).map(
                 //ex
                 marketData -> {
-                    double price = 100;
-                    return marketData.getCurrentPrice() < price;
+                    double price = 1;
+                    boolean b = marketData.getCurrentPrice() < price;
+                    log.info("market : {} , condition : {}", market, b);
+                    return b;
                 }
-        ).defaultIfEmpty(false);
+        );
+
     }
 
     private Mono<Boolean> shouldPurchaseForTarget(Entry<String , Double> entry) {
 
+        return marketDataClient.getMarketData(entry.getKey())
+                .map(marketData -> marketData.getCurrentPrice() <= entry.getValue() && !activePurchases.containsKey(entry.getKey()));
+
     }
+
 
 
 
     // 초기화
     private Mono<PurchaseManager> initPurchase(String market) {
+        log.info("매수를위한 초기화 시작 : {}", market);
         return accountService.getAvailableBalance("KRW").flatMap(
                 balance -> {
-                    double amount = balance * 0.2;
+                    double amount = balance;
+                    log.info("매수시작 :{} , 할당된금액 : {}", market, balance);
                     PurchaseManager purchaseManager = PurchaseManager.create(market, amount);
                     activePurchases.put(market, purchaseManager);
                     isPurchasing.set(true);
@@ -169,6 +184,7 @@ public class OrderSchService {
 
     // 분할 매수 로직
     private Mono<String> executePurchase(PurchaseManager manager) {
+        log.info("매수시작 : {}", manager.getMarket());
 
         return Flux.interval(Duration.ofMinutes(5))
                 .take(3)
@@ -178,10 +194,13 @@ public class OrderSchService {
 
                     double amount = manager.calculateRemainingAmount();
 
+                    log.info("매수 :{} , 매수금액 :{}", manager.getMarket(), amount);
+
                     return orderService.getOrderV2(manager.getMarket(), String.valueOf(amount),
                                     null, "bid", "price")
                             .doOnNext(response -> {
                                 manager.updatePurchaseManager(marketData.getCurrentPrice(), amount);
+                                log.info("매수 : {}", manager.getMarket());
 
                                 if (manager.getPurchaseCount() >= 3) {
                                     completePurchase(manager);
@@ -198,8 +217,59 @@ public class OrderSchService {
                 );
     }
 
+    /**
+     * FLux.interval 기능은 즉시시작이아니기떄문에 , 내가 원하는시나리오랑 맞추려면 아래와같이 작동시켜야함 .
+     */
+    private Mono<String> executePurchaseV2(PurchaseManager manager) {
+
+        log.info("매수시작 : {}", manager.getMarket());
+
+        Mono<String> initialPurchase = getPurchase(manager);
+
+        Flux<String> additionalPurchases = Flux.interval(Duration.ofMinutes(5)).take(2)
+                .flatMap(s -> getPurchase(manager));
+
+        return Flux.concat(initialPurchase, additionalPurchases)
+                .collectList()
+                .flatMap(
+                        response -> {
+                            completePurchase(manager);
+                            return Mono.justOrEmpty(
+                                    response.size() > 0 ? response.get(response.size() - 1)
+                                            : "매수완료");
+                        }
+                );
+    }
+
+    private Mono<String> getPurchase(PurchaseManager manager) {
+
+        return marketDataClient.getMarketData(manager.getMarket())
+                .filter(marketData -> executeAdditionalPurchase(manager, marketData))
+                .flatMap(marketData -> {
+
+                    double amount = manager.calculateRemainingAmount();
+
+                    log.info("매수 :{} , 매수금액 :{}", manager.getMarket(), amount);
+
+                    return orderService.getOrderV2(manager.getMarket(), String.valueOf(amount),
+                                    null, "bid", "price")
+                            .doOnNext(response -> {
+                                manager.updatePurchaseManager(marketData.getCurrentPrice(), amount);
+                                log.info("매수 : {}", manager.getMarket());
+
+                                if (manager.getPurchaseCount() >= 3) {
+                                    completePurchase(manager);
+                                }
+
+                            });
+
+                }).thenReturn("매수완료");
+
+    }
+
     private void completePurchase(PurchaseManager manager) {
-        activePurchases.remove(manager.getMarket());
+        log.info("매수완료 : {} ", manager.getMarket());
+//        activePurchases.remove(manager.getMarket());
         if (activePurchases.isEmpty()) {
             isPurchasing.set(false);
         }
@@ -209,7 +279,13 @@ public class OrderSchService {
     private boolean executeAdditionalPurchase(PurchaseManager manager,
             CoinDataResponse marketData) {
 
-        return manager.getPurchaseCount() == 0 || marketData.getCurrentPrice() < manager.getLastPurchasePrice();
+
+        boolean result = manager.getPurchaseCount() == 0
+                || marketData.getCurrentPrice() < manager.getLastPurchasePrice();
+
+        log.info("추가매수 조건 체크 : {} , 결과 : {}", manager.getMarket(), result);
+
+        return result;
 
     }
 

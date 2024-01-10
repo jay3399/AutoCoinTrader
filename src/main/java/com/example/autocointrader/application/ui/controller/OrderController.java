@@ -84,12 +84,7 @@ public class OrderController {
     @GetMapping("/api/order/test")
     public void test() {
 
-        Flux<String> currencyOnAccounts = accountAppService.getCurrencyOnAccounts();
-
-        currencyOnAccounts.subscribe(s -> {
-            System.out.println("s = " + s);
-        });
-
+        orderSchService.executeOrders();
 
 
     }
