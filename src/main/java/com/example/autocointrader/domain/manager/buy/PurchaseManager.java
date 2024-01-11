@@ -25,7 +25,9 @@ public class PurchaseManager {
     }
 
     public double calculateRemainingAmount() {
-        return this.totalAmount - this.usedAmount / 2;
+        double remainingAmount = this.totalAmount - this.usedAmount;
+
+        return remainingAmount / 2;
     }
 
     public void updatePurchaseManager(double lastPurchasePrice, double purchaseAmount) {

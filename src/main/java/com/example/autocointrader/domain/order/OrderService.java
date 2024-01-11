@@ -3,6 +3,7 @@ package com.example.autocointrader.domain.order;
 import com.example.autocointrader.application.ui.response.OrderChanceResponse;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.validation.constraints.Min;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.security.MessageDigest;
@@ -30,7 +31,7 @@ public class OrderService {
         this.secretKey = secretKey;
     }
 
-    public Mono<String> getOrderV2(String market, String price, String volume, String side , String ordType) {
+    public Mono<String> getOrderV2(String market, @Min(value = 5000, message = "최소 주문 금액은 5000원 이상이어야 합니다.") Double price, String volume, String side , String ordType) {
 
         Map<String, Object> body = new HashMap<>();
         body.put("market", market);

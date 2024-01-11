@@ -34,7 +34,7 @@ public class OrderController {
 
     @PostMapping("/api/orders/create")
     public ResponseEntity<String> createOrder(@RequestParam String market,
-            @RequestParam String price, @RequestParam String side, @RequestParam String volume,
+            @RequestParam double price, @RequestParam String side, @RequestParam String volume,
             @RequestParam String ordType) {
 
         Mono<String> order = orderService.getOrderV2(market, price, volume, side, ordType);

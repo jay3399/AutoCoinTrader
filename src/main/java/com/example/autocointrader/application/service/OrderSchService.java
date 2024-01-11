@@ -172,12 +172,12 @@ public class OrderSchService {
         log.info("매수를위한 초기화 시작 : {}", market);
         return accountService.getAvailableBalance("KRW").flatMap(
                 balance -> {
-                    double amount = balance;
+                    double amount = balance * 0.5;
                     log.info("매수시작 :{} , 할당된금액 : {}", market, balance);
                     PurchaseManager purchaseManager = PurchaseManager.create(market, amount);
                     activePurchases.put(market, purchaseManager);
                     isPurchasing.set(true);
-                    return executePurchase(purchaseManager).thenReturn(purchaseManager);
+                    return executePurchaseV2(purchaseManager).thenReturn(purchaseManager);
                 }
         );
     }
@@ -194,9 +194,15 @@ public class OrderSchService {
 
                     double amount = manager.calculateRemainingAmount();
 
+                    if (amount < 5000) {
+                        log.info("매수금액 부족:{} , 필요한 최소금액: 5000, 현재금액 :{}", manager.getMarket(), amount);
+                        return Mono.just("매수금액부족");
+                    }
+
+
                     log.info("매수 :{} , 매수금액 :{}", manager.getMarket(), amount);
 
-                    return orderService.getOrderV2(manager.getMarket(), String.valueOf(amount),
+                    return orderService.getOrderV2(manager.getMarket(), amount,
                                     null, "bid", "price")
                             .doOnNext(response -> {
                                 manager.updatePurchaseManager(marketData.getCurrentPrice(), amount);
@@ -226,17 +232,14 @@ public class OrderSchService {
 
         Mono<String> initialPurchase = getPurchase(manager);
 
-        Flux<String> additionalPurchases = Flux.interval(Duration.ofMinutes(5)).take(2)
-                .flatMap(s -> getPurchase(manager));
+        Flux<String> additionalPurchases = Flux.interval(Duration.ofMinutes(5)).take(2).flatMap(s -> getPurchase(manager));
 
         return Flux.concat(initialPurchase, additionalPurchases)
                 .collectList()
                 .flatMap(
                         response -> {
                             completePurchase(manager);
-                            return Mono.justOrEmpty(
-                                    response.size() > 0 ? response.get(response.size() - 1)
-                                            : "매수완료");
+                            return Mono.justOrEmpty(response.size() > 0 ? response.get(response.size() - 1) : "매수완료");
                         }
                 );
     }
@@ -247,12 +250,11 @@ public class OrderSchService {
                 .filter(marketData -> executeAdditionalPurchase(manager, marketData))
                 .flatMap(marketData -> {
 
-                    double amount = manager.calculateRemainingAmount();
+                    double amount = manager.calculateRemainingAmount() - 100;
 
                     log.info("매수 :{} , 매수금액 :{}", manager.getMarket(), amount);
 
-                    return orderService.getOrderV2(manager.getMarket(), String.valueOf(amount),
-                                    null, "bid", "price")
+                    return orderService.getOrderV2(manager.getMarket(), amount, null, "bid", "price")
                             .doOnNext(response -> {
                                 manager.updatePurchaseManager(marketData.getCurrentPrice(), amount);
                                 log.info("매수 : {}", manager.getMarket());

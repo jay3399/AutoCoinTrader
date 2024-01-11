@@ -33,7 +33,7 @@ public class OrderAppService {
 
                 chance -> {
                     String price = chance.getBidAccount().getBalance();
-                    return orderService.getOrderV2(market, price, null, "bid", "price");
+                    return orderService.getOrderV2(market, Double.valueOf(price), null, "bid", "price");
 
                 }
         );
