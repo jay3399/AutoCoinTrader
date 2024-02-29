@@ -23,7 +23,6 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class OrderSchService {
 
-
     /** 자동매수
      *
      * 시나리오
@@ -69,24 +68,17 @@ public class OrderSchService {
      *
      * 분할 매수전략은 위와 동일하다 .
      *
-     *
-     *
-     *
-     *
      */
-
 
     /**
      * 자동 매도 - 주문메서드 (orderService) , 내가 현재 갖고있는 코인리스트
      *
      *
      *
-     *
      */
 
 
     /**
-     *
      *
      */
 
@@ -129,9 +121,6 @@ public class OrderSchService {
                 .subscribe();
     }
 
-
-
-
     // 조건 체크 로직
 
     private Mono<Boolean> shouldPurchase(String market) {
@@ -157,14 +146,13 @@ public class OrderSchService {
 
     }
 
-    private Mono<Boolean> shouldPurchaseForTarget(Entry<String , Double> entry) {
+    private Mono<Boolean> shouldPurchaseForTarget(Entry<String, Double> entry) {
 
         return marketDataClient.getMarketData(entry.getKey())
-                .map(marketData -> marketData.getCurrentPrice() <= entry.getValue() && !activePurchases.containsKey(entry.getKey()));
+                .map(marketData -> marketData.getCurrentPrice() <= entry.getValue()
+                        && !activePurchases.containsKey(entry.getKey()));
 
     }
-
-
 
 
     // 초기화
@@ -182,7 +170,13 @@ public class OrderSchService {
         );
     }
 
-    // 분할 매수 로직
+    /**
+     * 분할매수
+     *
+     * 최소금액 5000원을 executePurchase , getOrder 두번체크
+     * 하지만 , API 중 주문가능금액을 호출할수있는 기능이있다 , 해당 기능을 이용하면 위와같이 번거로운 과정을 좀 생략할수있다. 
+     */
+
     private Mono<String> executePurchase(PurchaseManager manager) {
         log.info("매수시작 : {}", manager.getMarket());
 
@@ -195,10 +189,10 @@ public class OrderSchService {
                     double amount = manager.calculateRemainingAmount();
 
                     if (amount < 5000) {
-                        log.info("매수금액 부족:{} , 필요한 최소금액: 5000, 현재금액 :{}", manager.getMarket(), amount);
+                        log.info("매수금액 부족:{} , 필요한 최소금액: 5000, 현재금액 :{}", manager.getMarket(),
+                                amount);
                         return Mono.just("매수금액부족");
                     }
-
 
                     log.info("매수 :{} , 매수금액 :{}", manager.getMarket(), amount);
 
@@ -218,7 +212,9 @@ public class OrderSchService {
                 .flatMap(
                         response -> {
                             completePurchase(manager);
-                            return Mono.justOrEmpty(response.size() > 0 ? response.get(response.size() - 1) : "매수완료");
+                            return Mono.justOrEmpty(
+                                    response.size() > 0 ? response.get(response.size() - 1)
+                                            : "매수완료");
                         }
                 );
     }
@@ -232,14 +228,17 @@ public class OrderSchService {
 
         Mono<String> initialPurchase = getPurchase(manager);
 
-        Flux<String> additionalPurchases = Flux.interval(Duration.ofMinutes(5)).take(2).flatMap(s -> getPurchase(manager));
+        Flux<String> additionalPurchases = Flux.interval(Duration.ofMinutes(5)).take(2)
+                .flatMap(s -> getPurchase(manager));
 
         return Flux.concat(initialPurchase, additionalPurchases)
                 .collectList()
                 .flatMap(
                         response -> {
                             completePurchase(manager);
-                            return Mono.justOrEmpty(response.size() > 0 ? response.get(response.size() - 1) : "매수완료");
+                            return Mono.justOrEmpty(
+                                    response.size() > 0 ? response.get(response.size() - 1)
+                                            : "매수완료");
                         }
                 );
     }
@@ -254,7 +253,8 @@ public class OrderSchService {
 
                     log.info("매수 :{} , 매수금액 :{}", manager.getMarket(), amount);
 
-                    return orderService.getOrderV2(manager.getMarket(), amount, null, "bid", "price")
+                    return orderService.getOrderV2(manager.getMarket(), amount, null, "bid",
+                                    "price")
                             .doOnNext(response -> {
                                 manager.updatePurchaseManager(marketData.getCurrentPrice(), amount);
                                 log.info("매수 : {}", manager.getMarket());
@@ -280,7 +280,6 @@ public class OrderSchService {
 
     private boolean executeAdditionalPurchase(PurchaseManager manager,
             CoinDataResponse marketData) {
-
 
         boolean result = manager.getPurchaseCount() == 0
                 || marketData.getCurrentPrice() < manager.getLastPurchasePrice();

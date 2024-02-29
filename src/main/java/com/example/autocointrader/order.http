@@ -1,5 +1,5 @@
 #GET http://localhost:8080/api/order/chance?market=KRW-XRP
-#POST http://localhost:8080/api/orders/create?market=KRW-XRP&price=6000&ordType=price&side=bid&volume=null
+#POST http://localhost:8080/api/orders/create?market=KRW-XRP&price=18&ordType=price&side=bid&volume=null
 #POST http://localhost:8080/api/orders/sell/all?market=KRW-XRP
 #GET http://localhost:8080/api/balance/available?currency=KRW
 GET http://localhost:8080/api/order/test
