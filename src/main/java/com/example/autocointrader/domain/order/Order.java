@@ -1,13 +1,21 @@
 package com.example.autocointrader.domain.order;
 
+import java.util.Date;
+import java.util.Optional;
+
 public class Order {
 
-    private Long id;
-    private String coinName;
+    private String market;
+    private Side side;
     private OrderType orderType;
-    private int price;
-    private int quantity;
-    public OrderStatus orderStatus;
+
+    private Optional<Double> price;
+
+    private Optional<String> volume;
+
+
+
+
 
 
 }

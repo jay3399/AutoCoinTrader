@@ -41,20 +41,4 @@ public class OrderAppService {
 
     }
 
-    private String getCoins(String market) {
-
-        Mono<OrderChanceResponse> orderChance = orderService.getOrderChance(market);
-
-        return orderChance.block().getBidAccount().getBalance();
-    }
-
-    private String getPrice(String market) {
-
-        Mono<OrderChanceResponse> orderChance = orderService.getOrderChance(market);
-
-        return orderChance.block().getAskAccount().getBalance();
-
-    }
-
-
 }

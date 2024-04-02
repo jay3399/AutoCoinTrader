@@ -1,9 +1,7 @@
 package com.example.autocointrader.domain.order;
 
-public enum OrderType {
+public enum Side {
 
-    LIMIT,
-    MARKET
-
-
+    BID ,
+    ASK
 }

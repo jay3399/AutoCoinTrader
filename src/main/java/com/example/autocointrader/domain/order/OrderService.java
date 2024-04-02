@@ -19,6 +19,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 
+
 @Service
 public class OrderService {
 
@@ -31,7 +32,33 @@ public class OrderService {
         this.secretKey = secretKey;
     }
 
+
+    /**
+     * 클라이언트 ( 마켓 , 매수 or 매도 ( 가격 , 볼륨 )  , 시장가매수(매수금액만) or 시장가매도(매도수량만) ) ->  주문생성  ( price 5000 이하 x , price 가 balance 를 초과할떄도 x )
+     * price 5000이하는 아래와같이 파라미터 검증단에서 막았다.
+     * 1.하지만 price 의 balance 초과부분은 어떻게 ? 직접 만든다 vs api 주문가능한금액 기능을 사용한다
+     * 2.검증부분을 클라이언트 요청을 처음받는 controller단에서 모두 처리하는게 괜찮을까 ? 아니면 아래와같이 서비스에서 처리할까.
+     *
+     * controller 나눈다 . ?
+     *
+     * 매수전용 -> 1.시장가매수 ,2.지정가매수
+     *
+     * 메도전용 -> 1.시장가매도 ,2.지정가매도
+     *
+     *
+     */
+
     public Mono<String> getOrderV2(String market, @Min(value = 5000, message = "최소 주문 금액은 5000원 이상이어야 합니다.") Double price, String volume, String side , String ordType) {
+
+//        Mono<OrderChanceResponse> orderChance = getOrderChance(market);
+//        OrderChanceResponse block = orderChance.block();
+//        long balance = Long.parseLong(block.getBidAccount().getBalance());
+//
+//        if (price > balance) {
+//            throw new IllegalArgumentException("금액부족");
+//        }
+
+
 
         Map<String, Object> body = new HashMap<>();
         body.put("market", market);
@@ -40,13 +67,15 @@ public class OrderService {
 
         switch (ordType) {
             case "price" -> {
+                //bid -> 매수
                 if ("bid".equals(side)) {
-                    body.put("price", price); // 시장가 매수: 매수 금액 설정
+                    body.put("price", price); // 시장가 : 매수 금액 설정
                 }
             }
             case "market" -> {
+                //ask -> 매도
                 if ("ask".equals(side)) {
-                    body.put("volume", volume); // 시장가 매도: 매도 수량 설정
+                    body.put("volume", volume); // 시장가 : 매도 수량 설정
                 }
             }
             case "limit" -> {
