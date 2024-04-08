@@ -43,23 +43,23 @@ public class OrderController {
         return ResponseEntity.ok(order.block());
     }
 
-    @PostMapping("/api/orders/buy")
-    public ResponseEntity<String> createOrderForBuying(@RequestParam String market,
-            @RequestParam Optional<Double> price , @RequestParam Optional<String> volume) {
-
-
-    }
-
-    @PostMapping("/api/orders/sell")
-    public ResponseEntity<String> createOrderForSelling(@RequestParam String market,
-            @RequestParam Optional<Double> price , @RequestParam Optional<String> volume) {
-
-
-
-    }
-
-
-
+//    @PostMapping("/api/orders/buy")
+//    public ResponseEntity<String> createOrderForBuying(@RequestParam String market,
+//            @RequestParam Optional<Double> price , @RequestParam Optional<String> volume) {
+//
+//
+//    }
+//
+//    @PostMapping("/api/orders/sell")
+//    public ResponseEntity<String> createOrderForSelling(@RequestParam String market,
+//            @RequestParam Optional<Double> price , @RequestParam Optional<String> volume) {
+//
+//
+//
+//    }
+//
+//
+//
 
     @PostMapping("/api/orders/sell/all")
     public ResponseEntity<String> createOrderForSellAllCoins(@RequestParam String market) {
@@ -96,8 +96,7 @@ public class OrderController {
         AccountInfo bidAccount = chanceResponse.getBidAccount();
         AccountInfo askAccount = chanceResponse.getAskAccount();
 
-
-        return ResponseEntity.ok(a);
+        return ResponseEntity.ok(bidAccount.getBalance());
     }
 
     @GetMapping("/api/order/test")
