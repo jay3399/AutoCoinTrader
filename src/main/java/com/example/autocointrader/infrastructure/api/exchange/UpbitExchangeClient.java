@@ -2,6 +2,9 @@ package com.example.autocointrader.infrastructure.api.exchange;
 
 
 import com.example.autocointrader.application.ui.response.OrderChanceResponse;
+import com.example.autocointrader.domain.order.Order;
+import com.example.autocointrader.domain.order.OrderType;
+import com.example.autocointrader.domain.order.Side;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import jakarta.validation.constraints.Min;
@@ -11,6 +14,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,19 +47,6 @@ public class UpbitExchangeClient {
 
 
 
-    public Mono<OrderChanceResponse> getOrderChance(String market) {
-
-        String queryString = "market=" + market;
-
-        String token = generateAuthToken(queryString);
-
-        return webClient.get()
-                .uri("https://api.upbit.com/v1/orders/chance?market=" + market)
-                .header("Authorization", token)
-                .retrieve()
-                .bodyToMono(OrderChanceResponse.class);
-
-    }
 
     public Mono<OrderChanceResponse> getOrderChanceV(String market) {
 
@@ -73,51 +64,7 @@ public class UpbitExchangeClient {
 
     }
 
-    public Mono<String> getOrderV2(String market, @Min(value = 5000, message = "최소 주문 금액은 5000원 이상이어야 합니다.") Double price, String volume, String side , String ordType) {
-
-
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("market", market);
-        body.put("side", side);
-        body.put("ord_type", ordType); // 주문 유형
-
-        switch (ordType) {
-            case "price" -> {
-                //bid -> 매수
-                if ("bid".equals(side)) {
-                    body.put("price", price); // 시장가 : 매수 금액 설정
-                }
-            }
-            case "market" -> {
-                //ask -> 매도
-                if ("ask".equals(side)) {
-                    body.put("volume", volume); // 시장가 : 매도 수량 설정
-                }
-            }
-            case "limit" -> {
-                // 지정가 주문: 가격과 수량 설정
-                body.put("price", price);
-                body.put("volume", volume);
-            }
-            default -> throw new IllegalArgumentException(ordType);
-        }
-
-
-        String queryString = createQueryString(body);
-
-        String authToken = generateAuthToken(queryString);
-
-        return webClient.post().uri("https://api.upbit.com/v1/orders")
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", authToken)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(String.class);
-
-    }
-
-    public Mono<String> getOrderV(String market, @Min(value = 5000, message = "최소 주문 금액은 5000원 이상이어야 합니다.") Double price, String volume, String side , String ordType) {
+    public Mono<String> getOrderV(Order order) {
 
 //        Mono<OrderChanceResponse> orderChance = getOrderChance(market);
 //        OrderChanceResponse block = orderChance.block();
@@ -126,7 +73,11 @@ public class UpbitExchangeClient {
 //        if (price > balance) {
 //            throw new IllegalArgumentException("금액부족");
 //        }
-
+        OrderType ordType = order.getOrderType();
+        Side side = order.getSide();
+        String market = order.getMarket();
+        Optional<Double> price = order.getPrice();
+        Optional<String> volume = order.getVolume();
 
 
         Map<String, Object> body = new HashMap<>();
@@ -135,31 +86,22 @@ public class UpbitExchangeClient {
         body.put("ord_type", ordType); // 주문 유형
 
         switch (ordType) {
-            case "price" -> {
-                //bid -> 매수
-                if ("bid".equals(side)) {
-                    body.put("price", price); // 시장가 : 매수 금액 설정
-                }
-            }
-            case "market" -> {
-                //ask -> 매도
-                if ("ask".equals(side)) {
-                    body.put("volume", volume); // 시장가 : 매도 수량 설정
-                }
-            }
-            case "limit" -> {
-                // 지정가 주문: 가격과 수량 설정
+            case LIMIT:
                 body.put("price", price);
                 body.put("volume", volume);
-            }
-            default -> throw new IllegalArgumentException(ordType);
+                break;
+            case MARKET:
+                if ("ask".equals(side)) {
+                    body.put("volume", volume);
+                }
+                break;
+            default:
+                throw new IllegalArgumentException();
         }
-
 
         String queryString = createQueryString(body);
 
         String authToken = generateAuthToken(queryString);
-
 
         return webClient.post().uri(ORDER_URL)
                 .contentType(MediaType.APPLICATION_JSON)
