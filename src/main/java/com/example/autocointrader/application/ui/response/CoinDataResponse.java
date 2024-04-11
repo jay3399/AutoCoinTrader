@@ -13,15 +13,15 @@ public class CoinDataResponse {
 
     @JsonProperty("market")
     private String symbol;
-
     @JsonProperty("trade_price")
     private double currentPrice;
-
     @JsonProperty("prev_closing_price")
     private double prevClosingPrice;
 
-
-
+    @JsonProperty("trade_volume")
+    private double volume;
+    @JsonProperty("acc_trade_volume_24h")
+    private double volumeForDay;
 
 
 }

@@ -22,7 +22,6 @@ public class OrderChanceResponse {
     @Getter
     public static class AccountInfo {
 
-
         @JsonProperty("balance")
         private String balance;
 

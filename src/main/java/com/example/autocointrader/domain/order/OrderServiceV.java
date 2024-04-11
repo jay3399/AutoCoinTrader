@@ -20,7 +20,6 @@ public class OrderServiceV {
 
     }
 
-
     public Mono<OrderChanceResponse> getOrderChance(String market) {
 
         return upbitExchangeClient.getOrderChanceV(market);
