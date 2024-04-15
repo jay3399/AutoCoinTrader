@@ -19,7 +19,6 @@ public class OrderBuyService {
      * @param marketCode
      * @return 해당 마켓 매수가능 잔고
      */
-
     public Mono<String> getBalanceForBuying(String marketCode) {
 
         Mono<String> balance = upbitExchangeClient.getOrderChanceV(marketCode)
@@ -27,6 +26,20 @@ public class OrderBuyService {
 
         return balance;
     }
+
+
+//    public Mono<String> getOrderForBuying(Order order) {
+//
+//        Mono<String> balanceForBuying = getBalanceForBuying(order.getMarket());
+//
+//
+//
+//
+//
+//
+//    }
+
+
 
 
 

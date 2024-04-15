@@ -10,7 +10,22 @@ public class Order {
     private Side side;
     private OrderType orderType;
 
+    /**
+     * 시장가 매수시 , 총 매수금액
+     * 지정가 매수시 , 매수가격
+     *
+     * 시장가 매도시 , 총 매도금액
+     * 지정가 매도시 , 매도가격
+     */
     private Optional<Double> price;
+
+    /**
+     * 시장가 매수시 , 값 필요없음
+     * 지정가 매수시 , 총 개수
+     *
+     * 시장가 매도시 , 값 필요없음
+     * 지정가 매도시 , 총개수
+     */
     private Optional<String> volume;
 
 
@@ -37,6 +52,15 @@ public class Order {
     public static Order createForMarketBid(String market, Optional<Double> price) {
 
         return new Order(Side.BID, OrderType.MARKET, market, price, null);
+
+    }
+
+    public boolean checkBalance(double balance) {
+
+        if (side == Side.BID) {
+            price.orElseThrow(() -> new IllegalArgumentException("매수금액 필요"));
+            return balance > price.get();
+        }
 
     }
 
