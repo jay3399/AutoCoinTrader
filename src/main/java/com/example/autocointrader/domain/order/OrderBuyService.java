@@ -16,29 +16,26 @@ public class OrderBuyService {
 
     /**
      *
-     * @param marketCode
+     * @param
      * @return 해당 마켓 매수가능 잔고
      */
-    public Mono<String> getBalanceForBuying(String marketCode) {
+    public Mono<Double> getBalanceForBuying(String market) {
 
-        Mono<String> balance = upbitExchangeClient.getOrderChanceV(marketCode)
-                .map(OrderChanceResponse::getAskAccount).map(AccountInfo::getBalance);
+        return upbitExchangeClient.getOrderChanceV(market).map(OrderChanceResponse::getAskAccount)
+                .map(AccountInfo::getBalance).map(Double::parseDouble);
 
-        return balance;
+
     }
 
 
-//    public Mono<String> getOrderForBuying(Order order) {
-//
-//        Mono<String> balanceForBuying = getBalanceForBuying(order.getMarket());
-//
-//
-//
-//
-//
-//
-//    }
+    public Mono<String> getOrderForBuying(Order order) {
 
+        return upbitExchangeClient.getOrderV(order).map(res -> "주문성공 : OrderId :..")
+                .onErrorResume(e -> Mono.error(new RuntimeException("주문실패")));
+
+
+
+    }
 
 
 
@@ -48,3 +45,12 @@ public class OrderBuyService {
 
 
 }
+//    public Mono<String> getBalanceForBuying(Order order) {
+//
+//        return upbitExchangeClient.getOrderChanceV(order.getMarket())
+//                .map(OrderChanceResponse::getAskAccount).map(AccountInfo::getBalance)
+//                .map(Double::parseDouble)
+//                .map(balance -> order.checkBalance(balance)).flatMap(this::getOrderForBuying)
+//                .onErrorResume(e -> Mono.just(e.getMessage()));
+//
+//    }

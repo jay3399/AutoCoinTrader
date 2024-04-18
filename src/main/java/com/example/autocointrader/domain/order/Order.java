@@ -2,6 +2,7 @@ package com.example.autocointrader.domain.order;
 
 import java.util.Optional;
 import lombok.Getter;
+import reactor.core.publisher.Mono;
 
 @Getter
 public class Order {
@@ -51,16 +52,14 @@ public class Order {
 
     public static Order createForMarketBid(String market, Optional<Double> price) {
 
+
         return new Order(Side.BID, OrderType.MARKET, market, price, null);
 
     }
 
-    public boolean checkBalance(double balance) {
+    public Mono<Boolean> checkBalance(double balance) {
 
-        if (side == Side.BID) {
-            price.orElseThrow(() -> new IllegalArgumentException("매수금액 필요"));
-            return balance > price.get();
-        }
+        return Mono.just(balance >= price.get());
 
     }
 
